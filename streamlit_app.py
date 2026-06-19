@@ -26,8 +26,9 @@ if ingredient_list:
 
     time_to_insert = st.button('Submit Order')
 
-    my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_the_order)
-                        VALUES (?, ?)"""
+    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_order)
+            values ('""" + ingredient_string + """','""" + name_on_the_order + """')"""
+  
     if time_to_insert:
         safe_ingredients = ingredient_string.strip().replace("'", "''")
         safe_name = name_on_the_order.replace("'", "''")
