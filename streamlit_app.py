@@ -4,14 +4,13 @@ import requests
 import pandas as pd
 from snowflake.snowpark.functions import col
 
-# App Title
+# Write directly to the app
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
 
 st.write(
     """Choose the fruits you want in your custom Smoothie!"""
 )
 
-# Name Input
 name_on_the_order = st.text_input("Name on Smoothie:")
 
 st.write("The name on your Smoothie will be:", name_on_the_order)
@@ -20,7 +19,7 @@ st.write("The name on your Smoothie will be:", name_on_the_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get Fruit Data from Snowflake
+# Get both FRUIT_NAME and SEARCH_ON
 my_dataframe = session.table(
     "smoothies.public.fruit_options"
 ).select(
@@ -28,28 +27,20 @@ my_dataframe = session.table(
     col("SEARCH_ON")
 )
 
-# Convert to Pandas
-fruit_df = my_dataframe.to_pandas()
+# Convert Snowpark DataFrame to Pandas DataFrame
+pd_df = my_dataframe.to_pandas()
 
-# Dictionary: GUI Name -> API Search Name
-fruit_dict = dict(
-    zip(
-        fruit_df["FRUIT_NAME"],
-        fruit_df["SEARCH_ON"]
-    )
-)
+# Uncomment these two lines if you want to inspect the data
+# st.dataframe(pd_df)
+# st.stop()
 
-# Fruit names for the multiselect
-fruit_list = fruit_df["FRUIT_NAME"].tolist()
-
-# Multiselect
+# Multiselect uses fruit names shown to the user
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
-    fruit_list,
+    pd_df["FRUIT_NAME"].tolist(),
     max_selections=5
 )
 
-# Nutrition Information
 if ingredients_list:
 
     ingredients_string = ''
@@ -58,14 +49,26 @@ if ingredients_list:
 
         ingredients_string += fruit_chosen + ' '
 
-        st.subheader(
-            fruit_chosen + " Nutrition Information"
+        # Get SEARCH_ON value for selected fruit
+        search_on = pd_df.loc[
+            pd_df['FRUIT_NAME'] == fruit_chosen,
+            'SEARCH_ON'
+        ].iloc[0]
+
+        st.write(
+            'The search value for',
+            fruit_chosen,
+            'is',
+            search_on,
+            '.'
         )
 
-        search_value = fruit_dict[fruit_chosen]
+        st.subheader(
+            fruit_chosen + ' Nutrition Information'
+        )
 
         smoothiefroot_response = requests.get(
-            "https://my.smoothiefroot.com/api/fruit/" + search_value
+            "https://my.smoothiefroot.com/api/fruit/" + search_on
         )
 
         st.dataframe(
@@ -73,8 +76,7 @@ if ingredients_list:
             use_container_width=True
         )
 
-    # Submit Order Button
-    time_to_insert = st.button("Submit Order")
+    time_to_insert = st.button('Submit Order')
 
     if time_to_insert:
 
