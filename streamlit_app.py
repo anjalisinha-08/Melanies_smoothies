@@ -4,13 +4,12 @@ import requests
 import pandas as pd
 from snowflake.snowpark.functions import col
 
-# Write directly to the app
+# App Title
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
 
-st.write(
-    """Choose the fruits you want in your custom Smoothie!"""
-)
+st.write("Choose the fruits you want in your custom Smoothie!")
 
+# Name Input
 name_on_the_order = st.text_input("Name on Smoothie:")
 
 st.write("The name on your Smoothie will be:", name_on_the_order)
@@ -19,7 +18,7 @@ st.write("The name on your Smoothie will be:", name_on_the_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get both FRUIT_NAME and SEARCH_ON
+# Get Fruit Data
 my_dataframe = session.table(
     "smoothies.public.fruit_options"
 ).select(
@@ -27,14 +26,10 @@ my_dataframe = session.table(
     col("SEARCH_ON")
 )
 
-# Convert Snowpark DataFrame to Pandas DataFrame
+# Convert Snowpark DataFrame to Pandas
 pd_df = my_dataframe.to_pandas()
 
-# Uncomment these two lines if you want to inspect the data
-# st.dataframe(pd_df)
-# st.stop()
-
-# Multiselect uses fruit names shown to the user
+# Fruit Selection
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     pd_df["FRUIT_NAME"].tolist(),
@@ -49,7 +44,7 @@ if ingredients_list:
 
         ingredients_string += fruit_chosen + ' '
 
-        # Get SEARCH_ON value for selected fruit
+        # Lookup SEARCH_ON value
         search_on = pd_df.loc[
             pd_df['FRUIT_NAME'] == fruit_chosen,
             'SEARCH_ON'
@@ -76,23 +71,32 @@ if ingredients_list:
             use_container_width=True
         )
 
+    # Submit Order Button
     time_to_insert = st.button('Submit Order')
 
     if time_to_insert:
 
-        safe_ingredients = ingredients_string.strip().replace("'", "''")
-        safe_name = name_on_the_order.replace("'", "''")
+        try:
 
-        my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders
-        (ingredients, name_on_order)
-        VALUES
-        ('{safe_ingredients}', '{safe_name}')
-        """
+            safe_ingredients = ingredients_string.strip().replace("'", "''")
+            safe_name = name_on_the_order.replace("'", "''")
 
-        session.sql(my_insert_stmt).collect()
+            my_insert_stmt = f"""
+            INSERT INTO smoothies.public.orders
+            (ingredients, name_on_order)
+            VALUES
+            ('{safe_ingredients}', '{safe_name}')
+            """
 
-        st.success(
-            'Your Smoothie is ordered, ' + name_on_the_order + '!',
-            icon="✅"
-        )
+            st.code(my_insert_stmt)
+
+            session.sql(my_insert_stmt).collect()
+
+            st.success(
+                'Your Smoothie is ordered, ' + name_on_the_order + '!',
+                icon="✅"
+            )
+
+        except Exception as e:
+            st.error("INSERT failed!")
+            st.exception(e)
