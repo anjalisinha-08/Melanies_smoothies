@@ -28,7 +28,10 @@ if ingredient_list:
 
     my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_the_order)
                         VALUES (?, ?)"""
-
     if time_to_insert:
-        session.sql(my_insert_stmt, params=[ingredient_string.strip(), name_on_the_order]).collect()
+        safe_ingredients = ingredient_string.strip().replace("'", "''")
+        safe_name = name_on_the_order.replace("'", "''")
+        my_insert_stmt = f"""INSERT INTO smoothies.public.orders(ingredients, name_on_the_order)
+                            VALUES ('{safe_ingredients}', '{safe_name}')"""
+        session.sql(my_insert_stmt).collect()
         st.success('Your Smoothie is ordered, ' + name_on_the_order + '!', icon="✅")
