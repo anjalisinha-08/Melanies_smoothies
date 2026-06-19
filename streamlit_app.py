@@ -4,23 +4,24 @@ import requests
 import pandas as pd
 from snowflake.snowpark.functions import col
 
-# Write directly to the app
+# App title
 st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
 
-st.write(
-    """Choose the fruits you want in your custom Smoothie!"""
-)
+st.write("Choose the fruits you want in your custom Smoothie!")
 
-# Customer Name
+# Customer name
 name_on_the_order = st.text_input("Name on Smoothie:")
 
 st.write("The name on your Smoothie will be:", name_on_the_order)
 
-# Snowflake Connection
+# Filled checkbox
+order_filled = st.checkbox("Mark order as filled")
+
+# Snowflake connection
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Get Fruit Data
+# Get fruit data
 my_dataframe = session.table(
     "smoothies.public.fruit_options"
 ).select(
@@ -28,17 +29,16 @@ my_dataframe = session.table(
     col("SEARCH_ON")
 )
 
-# Convert Snowpark DataFrame to Pandas
+# Convert to pandas
 pd_df = my_dataframe.to_pandas()
 
-# Fruit Selection
+# Fruit selector
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     pd_df["FRUIT_NAME"].tolist(),
     max_selections=5
 )
 
-# Show Nutrition Information
 if ingredients_list:
 
     ingredients_string = ''
@@ -66,24 +66,36 @@ if ingredients_list:
             use_container_width=True
         )
 
-    # Submit Order Button
-    time_to_insert = st.button('Submit Order')
+    # Submit button
+    if st.button("Submit Order"):
 
-    if time_to_insert:
+        try:
 
-        safe_ingredients = ingredients_string.strip().replace("'", "''")
-        safe_name = name_on_the_order.replace("'", "''")
+            safe_ingredients = ingredients_string.strip().replace("'", "''")
+            safe_name = name_on_the_order.replace("'", "''")
 
-        my_insert_stmt = f"""
-        INSERT INTO smoothies.public.orders
-        (ingredients, name_on_order)
-        VALUES
-        ('{safe_ingredients}', '{safe_name}')
-        """
+            my_insert_stmt = f"""
+            INSERT INTO smoothies.public.orders
+            (
+                NAME_ON_ORDER,
+                INGREDIENTS,
+                ORDER_FILLED
+            )
+            VALUES
+            (
+                '{safe_name}',
+                '{safe_ingredients}',
+                {str(order_filled).upper()}
+            )
+            """
 
-        session.sql(my_insert_stmt).collect()
+            session.sql(my_insert_stmt).collect()
 
-        st.success(
-            'Your Smoothie is ordered, ' + name_on_the_order + '!',
-            icon="✅"
-        )
+            st.success(
+                f"Your Smoothie is ordered, {name_on_the_order}!",
+                icon="✅"
+            )
+
+        except Exception as e:
+            st.error("Insert failed")
+            st.exception(e)
