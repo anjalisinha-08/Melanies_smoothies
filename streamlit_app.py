@@ -22,19 +22,15 @@ if ingredient_list:
     ingredient_string = ''
 
     for fruit_choosen in ingredient_list:
-        ingredient_string += fruit_choosen + ''
-
+      ingredient_string += fruit_choosen + ' '
+      
     #st.write(ingredient_string)
     time_to_insert = st.button('Submit Order')
     
 
-    my_insert_stmt = """ insert into smoothies.public.orders(ingredients, name_on_the_order)
-                values ('""" + ingredient_string + """','""" + name_on_the_order + """')"""
-    
-        
-    #st.write(my_insert_stmt)
-    #st.stop()
-    
+       my_insert_stmt = """INSERT INTO smoothies.public.orders(ingredients, name_on_the_order)
+                        VALUES (?, ?)"""
+
     if time_to_insert:
-        session.sql(my_insert_stmt).collect()
+        session.sql(my_insert_stmt, params=[ingredient_string.strip(), name_on_the_order]).collect()
         st.success('Your Smoothie is ordered, ' + name_on_the_order + '!', icon="✅")
