@@ -1,16 +1,17 @@
 # Import python packages
 import streamlit as st
 import requests
+import pandas as pd
 from snowflake.snowpark.functions import col
 
-# Write directly to the app
-st.title(":cup_with_straw: Customize your Smoothie! :cup_with_straw:")
+# App Title
+st.title(":cup_with_straw: Customize Your Smoothie! :cup_with_straw:")
 
 st.write(
     """Choose the fruits you want in your custom Smoothie!"""
 )
 
-# Customer Name
+# Name Input
 name_on_the_order = st.text_input("Name on Smoothie:")
 
 st.write("The name on your Smoothie will be:", name_on_the_order)
@@ -19,22 +20,36 @@ st.write("The name on your Smoothie will be:", name_on_the_order)
 cnx = st.connection("snowflake")
 session = cnx.session()
 
-# Fruit Options Table
+# Get Fruit Data from Snowflake
 my_dataframe = session.table(
     "smoothies.public.fruit_options"
-).select(col("FRUIT_NAME"))
+).select(
+    col("FRUIT_NAME"),
+    col("SEARCH_ON")
+)
 
-# Convert Snowpark DataFrame to list
-fruit_list = [row["FRUIT_NAME"] for row in my_dataframe.collect()]
+# Convert to Pandas
+fruit_df = my_dataframe.to_pandas()
 
-# Fruit Selection
+# Dictionary: GUI Name -> API Search Name
+fruit_dict = dict(
+    zip(
+        fruit_df["FRUIT_NAME"],
+        fruit_df["SEARCH_ON"]
+    )
+)
+
+# Fruit names for the multiselect
+fruit_list = fruit_df["FRUIT_NAME"].tolist()
+
+# Multiselect
 ingredients_list = st.multiselect(
     "Choose up to 5 ingredients:",
     fruit_list,
     max_selections=5
 )
 
-# Nutrition Information + Order
+# Nutrition Information
 if ingredients_list:
 
     ingredients_string = ''
@@ -43,10 +58,14 @@ if ingredients_list:
 
         ingredients_string += fruit_chosen + ' '
 
-        st.subheader(fruit_chosen + ' Nutrition Information')
+        st.subheader(
+            fruit_chosen + " Nutrition Information"
+        )
+
+        search_value = fruit_dict[fruit_chosen]
 
         smoothiefroot_response = requests.get(
-            "https://my.smoothiefroot.com/api/fruit/" + fruit_chosen
+            "https://my.smoothiefroot.com/api/fruit/" + search_value
         )
 
         st.dataframe(
@@ -54,7 +73,8 @@ if ingredients_list:
             use_container_width=True
         )
 
-    time_to_insert = st.button('Submit Order')
+    # Submit Order Button
+    time_to_insert = st.button("Submit Order")
 
     if time_to_insert:
 
